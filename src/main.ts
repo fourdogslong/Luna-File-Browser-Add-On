@@ -1,4 +1,4 @@
-import { durationText, filterFiles, kindOf, type BrowserFile } from './logic';
+import { durationText, filterFiles, kindOf, midiFingerprint as parseMidiFingerprint, midiSimilarity, type BrowserFile, type MidiFingerprint } from './logic';
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string, _type?: { new(): T }): T => {
   const el = document.getElementById(id);
@@ -74,6 +74,13 @@ const mediaUrlCache = new Map<string, string>();
 type AudioFingerprint = { spectrum: number[]; envelope: number[]; character: number[] };
 const soundFeatures = new Map<string, AudioFingerprint>();
 const soundDurations = new Map<string, number>();
+const midiFeatureCacheKey = 'com.mathieu.luna-sound-browser.midi-features.v1';
+const MIDI_FEATURE_CACHE_LIMIT = 2_000;
+const midiFeatures = new Map<string, MidiFingerprint>();
+try {
+  const saved = JSON.parse(localStorage.getItem(midiFeatureCacheKey) ?? '{}') as Record<string, MidiFingerprint>;
+  for (const [path, fingerprint] of Object.entries(saved)) if (Array.isArray(fingerprint.pitchClasses) && Array.isArray(fingerprint.intervals) && Array.isArray(fingerprint.onsetGaps) && Array.isArray(fingerprint.noteLengths) && Array.isArray(fingerprint.beatPositions)) midiFeatures.set(path, fingerprint);
+} catch { /* Rebuild a damaged MIDI feature cache. */ }
 const fftCos = Float32Array.from({ length: 128 * 256 }, (_, index) => Math.cos(2 * Math.PI * Math.floor(index / 256 + 1) * (index % 256) / 256));
 const fftSin = Float32Array.from({ length: 128 * 256 }, (_, index) => Math.sin(2 * Math.PI * Math.floor(index / 256 + 1) * (index % 256) / 256));
 let sessionReleases: Luna.Unsubscribe[] = [];
@@ -1210,6 +1217,23 @@ async function audioFingerprint(file: BrowserFile, context: AudioContext, signal
   updateSimilarityCacheStatus();
   return { ...fingerprint, duration: decoded.duration };
 }
+async function midiFileFingerprint(file: BrowserFile, signal?: AbortSignal): Promise<MidiFingerprint> {
+  if (signal?.aborted) throw new DOMException('Similarity analysis cancelled.', 'AbortError');
+  const cached = midiFeatures.get(file.path);
+  if (cached) return cached;
+  const url = await luna.gui.serveMediaFile('com.fourdogslong.file_browser', file.path);
+  if (signal?.aborted) throw new DOMException('Similarity analysis cancelled.', 'AbortError');
+  const bytes = await fileBytes(url, signal);
+  if (signal?.aborted) throw new DOMException('Similarity analysis cancelled.', 'AbortError');
+  const fingerprint = parseMidiFingerprint(bytes);
+  if (!midiFeatures.has(file.path) && midiFeatures.size >= MIDI_FEATURE_CACHE_LIMIT) {
+    const oldest = midiFeatures.keys().next().value;
+    if (oldest) midiFeatures.delete(oldest);
+  }
+  midiFeatures.set(file.path, fingerprint);
+  updateSimilarityCacheStatus();
+  return fingerprint;
+}
 function cosineSimilarity(a: readonly number[], b: readonly number[]): number {
   return Math.max(0, Math.min(1, a.reduce((sum, value, index) => sum + value * (b[index] ?? 0), 0)));
 }
@@ -1224,7 +1248,7 @@ function fingerprintSimilarity(a: AudioFingerprint, b: AudioFingerprint): number
 }
 function updateSimilarityCacheStatus(): void {
   const status = document.getElementById('simcache');
-  if (status) status.textContent = `${soundFeatures.size.toLocaleString()} files indexed`;
+  if (status) status.textContent = `${(soundFeatures.size + midiFeatures.size).toLocaleString()} files indexed`;
 }
 function cancelSimilarAnalysis(): void {
   similarAnalysisAbort?.abort(); similarAnalysisAbort = undefined; similarAnalysisGeneration++;
@@ -1238,6 +1262,8 @@ async function renderSimilar(file: BrowserFile, folderOverride?: string): Promis
   similarAnalysisAbort = controller;
   const isCurrent = () => generation === similarAnalysisGeneration && !controller.signal.aborted;
   const folderPath = folderOverride ?? currentFolder;
+  const midiMode = kindOf(file) === 'MIDI';
+  const matchKind = midiMode ? 'MIDI' : 'Audio';
   similarPaneOpen = true;
   const root = $('similarlist');
   $('list').hidden = true;
@@ -1247,25 +1273,54 @@ async function renderSimilar(file: BrowserFile, folderOverride?: string): Promis
   similarAnalysisFolderPath = folderPath;
   similarMatches = [];
   $('simlabel').textContent = 'ANALYZING…';
-  root.textContent = folderOverride ? `Scanning ${basename(folderOverride)}…` : 'Analyzing sample features locally…';
+  root.textContent = folderOverride ? `Scanning ${basename(folderOverride)}…` : midiMode ? 'Analyzing MIDI patterns locally…' : 'Analyzing sample features locally…';
   let candidates: BrowserFile[];
   if (folderOverride || settings.similarCurrentFolderOnly) {
     const source = folderPath ? await ensureTreeScan(folderPath) : files;
     if (!isCurrent()) return;
-    candidates = source.filter((candidate) => candidate.path !== file.path && kindOf(candidate) === 'Audio');
+    candidates = source.filter((candidate) => candidate.path !== file.path && kindOf(candidate) === matchKind);
   } else {
-    candidates = (settings.includeSubfolders && recursiveFiles.length ? recursiveFiles : files).filter((candidate) => candidate.path !== file.path && kindOf(candidate) === 'Audio');
+    candidates = (settings.includeSubfolders && recursiveFiles.length ? recursiveFiles : files).filter((candidate) => candidate.path !== file.path && kindOf(candidate) === matchKind);
   }
   if (!folderOverride && !settings.similarCurrentFolderOnly && luna.gui.blessedFolders.value?.length) {
     try {
-      const indexed = await Promise.all((luna.gui.blessedFolders.value ?? []).map(async (rootPath) => { try { return (await luna.gui.listAllFiles(rootPath)).files.filter((entry) => !entry.isDirectory && kindOf(entry) === 'Audio'); } catch { return []; } }));
+      const indexed = await Promise.all((luna.gui.blessedFolders.value ?? []).map(async (rootPath) => { try { return (await luna.gui.listAllFiles(rootPath)).files.filter((entry) => !entry.isDirectory && kindOf(entry) === matchKind); } catch { return []; } }));
       if (!isCurrent()) return;
       candidates = [...new Map(indexed.flat().map((item) => [item.path, item])).values()].filter((candidate) => candidate.path !== file.path);
     } catch { /* Older LUNA builds may not support recursive listing; use the visible folder. */ }
   }
   if (!isCurrent()) return;
-  $('simlabel').textContent = 'ACOUSTIC MATCH';
-  if (!candidates.length) { similarMatches = [{ file, score: 1 }]; $('simlabel').textContent = 'ACOUSTIC MATCH'; renderSimilarRows(root); similarAnalysisAbort = undefined; return; }
+  $('simlabel').textContent = midiMode ? 'MIDI MATCH' : 'ACOUSTIC MATCH';
+  if (!candidates.length) { similarMatches = [{ file, score: 1 }]; renderSimilarRows(root); similarAnalysisAbort = undefined; return; }
+  if (midiMode) {
+    root.textContent = 'Analyzing MIDI note and rhythm patterns locally…';
+    try {
+      const reference = await midiFileFingerprint(file, controller.signal);
+      if (!isCurrent()) return;
+      const matches: { file: BrowserFile; score: number }[] = [];
+      for (let i = 0; i < candidates.length; i++) {
+        if (!isCurrent()) return;
+        $('simlabel').textContent = `ANALYZING MIDI ${i + 1}/${candidates.length}`;
+        try {
+          const candidate = await midiFileFingerprint(candidates[i], controller.signal);
+          if (!isCurrent()) return;
+          matches.push({ file: candidates[i], score: midiSimilarity(reference, candidate) });
+        } catch { if (!isCurrent()) return; /* Skip invalid or unreadable MIDI files. */ }
+        if (i % 6 === 5) await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+      }
+      if (!isCurrent()) return;
+      matches.sort((a, b) => b.score - a.score);
+      $('simlabel').textContent = 'MIDI MATCH';
+      similarMatches = [{ file, score: 1 }, ...matches.filter((match) => match.file.path !== file.path && match.score > 0).slice(0, 15)];
+      renderSimilarRows(root);
+    } catch (e) { if (isCurrent()) root.textContent = `Could not analyze this MIDI file: ${String((e as Error).message ?? e)}`; }
+    finally {
+      try { localStorage.setItem(midiFeatureCacheKey, JSON.stringify(Object.fromEntries(midiFeatures))); } catch { /* The local cache is optional. */ }
+      updateSimilarityCacheStatus();
+      if (similarAnalysisAbort === controller) similarAnalysisAbort = undefined;
+    }
+    return;
+  }
   root.textContent = 'Analyzing sample features locally…';
   const Context = window.AudioContext;
   if (!Context) { root.textContent = 'Audio analysis is unavailable in this LUNA view.'; similarAnalysisAbort = undefined; return; }
