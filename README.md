@@ -1,6 +1,6 @@
 # File Browser for LUNA
 
-Search and preview audio and MIDI from your LUNA Places, then import sounds to the selected track. The Add On ID is `com.fourdogslong.file_browser`.
+Search and preview audio and MIDI from your LUNA Places, then import sounds to the selected track.
 
 ![File Browser running in LUNA](screenshots/file-browser.png)
 
