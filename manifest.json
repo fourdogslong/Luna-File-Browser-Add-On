@@ -1,0 +1,20 @@
+{
+  "package_name": "File Browser",
+  "id": "com.fourdogslong.file_browser",
+  "title": "File Browser",
+  "version": "1.0.64",
+  "manufacturer": "fourdogslong",
+  "description": "Search, favorite, color, and preview audio and MIDI sounds in LUNA.",
+  "categories": [
+    "Import & Export",
+    "Workflow"
+  ],
+  "sdk_version": "3.1.2",
+  "min_luna_version": "3.1.2",
+  "engines": [
+    "luna"
+  ],
+  "html": "index.html",
+  "target": "browser",
+  "icon": "icon.png"
+}

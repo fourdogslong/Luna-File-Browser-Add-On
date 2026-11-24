@@ -1,0 +1,19 @@
+{
+  "name": "file-browser",
+  "private": true,
+  "version": "1.0.64",
+  "type": "module",
+  "description": "File Browser Add On for LUNA",
+  "scripts": {
+    "build": "node ./node_modules/typescript/bin/tsc && node ./node_modules/vite/bin/vite.js build",
+    "dev": "node ./node_modules/vite/bin/vite.js build --watch",
+    "typecheck": "node ./node_modules/typescript/bin/tsc",
+    "serve": "ua-builder serve",
+    "install-addon": "npm run build && ua-builder install",
+    "pack": "npm run build && ua-builder pack"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vite": "8.3.0"
+  }
+}
