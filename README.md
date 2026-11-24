@@ -28,3 +28,7 @@ node /path/to/ua-luna-builder/sdk/cli.js pack
 ```
 
 Attach the generated `.lunaaddon` to a GitHub release. LUNA Universe reads the icon from that release package. The Add On appears under **Add Ons → Browsers** when installed in LUNA.
+
+## Support
+
+If you enjoy this add-on and would like to support my work, consider [sponsoring me on GitHub](https://github.com/sponsors/fourdogslong). You can also use the **Sponsor** button at the top of this repository.
