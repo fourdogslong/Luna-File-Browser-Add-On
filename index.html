@@ -101,4 +101,17 @@ main{transform:scale(var(--interface-zoom,1));transform-origin:top left;width:ca
 .previewcontrols .tempo-sync svg{display:block;width:14px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
 .previewcontrols .tempo-sync[aria-pressed=true]{border-color:var(--active);background:color-mix(in srgb,var(--active) 25%,#303030);color:#fff;box-shadow:inset 0 0 0 1px var(--active)}
 .previewcontrols .tempo-sync:hover:not(:disabled){color:var(--copy)}.previewcontrols #preview.is-queued{border-color:#6a6250!important;background:#414141!important;color:var(--active)!important;box-shadow:0 0 7px color-mix(in srgb,var(--active) 55%,transparent)!important}
-.shortcut-info{margin:10px 0 2px;padding-top:8px;border-top:1px solid var(--edge);font-size:10px}.shortcut-info>b{display:block;margin-bottom:5px}.shortcut-info dl{margin:0}.shortcut-info dl>div{display:grid;grid-template-columns:minmax(92px,auto) 1fr;gap:8px;padding:3px 0}.shortcut-info dt{color:var(--copy);font-weight:500}.shortcut-info dd{margin:0;color:var(--subtle)}</style></body></html>
+.shortcut-info{margin:10px 0 2px;padding-top:8px;border-top:1px solid var(--edge);font-size:10px}.shortcut-info>b{display:block;margin-bottom:5px}.shortcut-info dl{margin:0}.shortcut-info dl>div{display:grid;grid-template-columns:minmax(92px,auto) 1fr;gap:8px;padding:3px 0}.shortcut-info dt{color:var(--copy);font-weight:500}.shortcut-info dd{margin:0;color:var(--subtle)}</style>
+<style id="adaptive-preview-volume">
+.previewcontrols .volumecontrol{display:flex;align-items:center;gap:2px;min-width:0;width:100%;overflow:visible}
+.previewcontrols .volumecontrol input{flex:1 1 0;width:0!important;min-width:12px;max-width:100%;height:16px;padding:0}
+.previewcontrols .vol-label{flex:0 0 auto}
+@media(max-width:310px){
+  .previewcontrols{grid-template-columns:56px minmax(12px,1fr) 22px 40px 36px!important;gap:2px!important}
+  .previewcontrols:has(#previewmidi){grid-template-columns:56px minmax(12px,1fr) 40px 36px!important}
+  .previewcontrols #preview,.previewcontrols #previewmidi{width:56px!important;min-width:56px!important;max-width:56px!important}
+  .previewcontrols #autoplayoption,.previewcontrols #loopoption{font-size:7px;padding:2px 0}
+  .previewcontrols .vol-label{display:none}
+}
+</style>
+</body></html>
