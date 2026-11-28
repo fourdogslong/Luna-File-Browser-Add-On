@@ -45,7 +45,7 @@ function normalizeFileColors(): void {
 normalizeFileColors();
 localStorage.removeItem('com.mathieu.luna-sound-browser.tags.v1');
 localStorage.removeItem('com.mathieu.luna-sound-browser.tag-definitions.v1');
-let settings = { autoplay: false, loop: false, syncSessionTempo: false, previewPath: false, accent: '#e5b747', interfaceZoom: 1, ignoreTypes: '', ignoreFolders: '', showEmpty: true, previewVolume: .8, stopPreviewOnAdd: true, doubleClickImport: true, singleExpand: false, includeSubfolders: false, similarCurrentFolderOnly: false, placesSize: 0, previewSize: 0 };
+let settings = { autoplay: false, loop: false, syncSessionTempo: false, previewPath: false, accent: '#e5b747', background: 'default', interfaceZoom: 1, ignoreTypes: '', ignoreFolders: '', showEmpty: true, previewVolume: .8, stopPreviewOnAdd: true, doubleClickImport: true, singleExpand: false, includeSubfolders: false, similarCurrentFolderOnly: false, placesSize: 0, previewSize: 0 };
 try {
   const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') as Record<string, unknown>;
   if (typeof saved.showEmpty !== 'boolean' && typeof saved.hideEmpty === 'boolean') saved.showEmpty = !saved.hideEmpty;
@@ -53,6 +53,7 @@ try {
   for (const obsolete of ['fullPaths','placesMode','folderRecursive','pluginIcons','resultsSize','foldersSearch','indexFolder','textSize','userPresetsOnly','temporaryPreview','dontShowPreviewConfirm','categoryTiles','showPresetCategories','showNonUadPlugins','previewWithTrackPlugins']) delete saved[obsolete];
   settings = { ...settings, ...(saved as Partial<typeof settings>) };
   if (!LUNA_PALETTE.includes(settings.accent)) settings.accent = LUNA_PALETTE[0];
+  if (!['default', 'light', 'dark'].includes(settings.background)) settings.background = 'default';
   settings.interfaceZoom = Math.max(.8, Math.min(1.2, Number(settings.interfaceZoom) || 1));
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 } catch { /* Ignore damaged settings. */ }
@@ -472,6 +473,14 @@ function renderList(): void {
 function toggleFavorite(file: BrowserFile): void {
   if (favorites.has(file.path)) favorites.delete(file.path); else favorites.add(file.path);
   persistBrowserState(); updateCounts(); refreshAudioMetadataIndex();
+  const button = document.querySelector<HTMLButtonElement>('#sounddetail .preview-favorite');
+  if (button && selected?.path === file.path) {
+    const active = favorites.has(file.path);
+    button.textContent = active ? '★' : '☆';
+    button.classList.toggle('on', active);
+    button.setAttribute('aria-pressed', String(active));
+    button.setAttribute('aria-label', active ? 'Remove from favorites' : 'Add to favorites');
+  }
 }
 function toggleFileColor(file: BrowserFile, color: string): void {
   if (fileColors[file.path] === color) delete fileColors[file.path]; else fileColors[file.path] = color;
@@ -537,7 +546,7 @@ async function renderSound(forcePlay = false): Promise<void> {
   if (file.path !== similarReferencePath && !similarMatches.some(({ file: match }) => match.path === file.path)) similarMatches = [];
   const audioFile = kindOf(file) === 'Audio';
   const generation = ++waveformGeneration;
-  root.innerHTML = `<div class="previewcard"><div class="previewtop"><div class="eyebrow">${kindOf(file)} · ${esc(basename(currentFolder))}</div>${audioFile ? '<div class="fileinfo"><span title="Sample rate">⌁ <b id="info-rate">—</b></span><span title="Bit depth">▤ <b id="info-bits">—</b></span><span title="Channels">◖◗ <b id="info-channels">—</b></span><span title="Length">◷ <b id="info-length">—</b></span></div>' : ''}</div><div class="assetname" title="${esc(file.name)}">${esc(file.name)}</div><div class="path" title="${esc(file.path)}" ${settings.previewPath ? '' : 'hidden'}>${settings.previewPath ? esc(previewFolderPath(file.path)) : ''}</div>${audioFile ? `<div class="wave-wrap"><canvas class="wave" id="wavecanvas" aria-label="Waveform preview"></canvas><span class="wave-cursor" id="wavecursor" hidden></span></div>` : ''}<div class="file-color-row" id="file-colors" role="group" aria-label="File color">${LUNA_PALETTE.map((color) => `<button type="button" class="file-color${fileColors[file.path] === color ? ' selected' : ''}" data-color="${color}" style="--file-swatch:${color}" title="${color}" aria-label="${fileColors[file.path] === color ? 'Clear' : 'Set'} file color ${color}" aria-pressed="${fileColors[file.path] === color}"></button>`).join('')}</div><div class="audio-controls previewcontrols"><button class="primary" id="${audioFile ? 'preview' : 'previewmidi'}">▶ Preview</button>${audioFile ? '<label class="volumecontrol" title="Preview volume"><span class="vol-label">VOL</span><input id="previewvolume" type="range" min="0" max="1" step="0.01" value="' + (settings.previewVolume ?? .8) + '" aria-label="Preview volume"></label>' : '<span class="midi-control-spacer"></span>'}${audioFile ? `<button type="button" id="temposync" class="tempo-sync" aria-label="Use session tempo for audio preview" title="Preview at session tempo" aria-pressed="${settings.syncSessionTempo}">${METRONOME_ICON}</button>` : ''}<button id="autoplayoption" aria-pressed="${settings.autoplay}">Auto-Play</button><button id="loopoption" aria-pressed="${settings.loop}">Loop</button></div><div class="audio-controls"><button class="primary" id="import">＋ Add to selected track</button><button id="newtrackimport">＋ Add to new track</button><button id="similar">Find similar</button><button id="reveal">Go to Place</button></div></div>`;
+  root.innerHTML = `<div class="previewcard"><div class="previewtop"><div class="eyebrow">${kindOf(file)} · ${esc(basename(currentFolder))}</div>${audioFile ? '<div class="fileinfo"><span title="Sample rate">⌁ <b id="info-rate">—</b></span><span title="Bit depth">▤ <b id="info-bits">—</b></span><span title="Channels">◖◗ <b id="info-channels">—</b></span><span title="Length">◷ <b id="info-length">—</b></span></div>' : ''}</div><div class="assetname" title="${esc(file.name)}">${esc(file.name)}</div><div class="path" title="${esc(file.path)}" ${settings.previewPath ? '' : 'hidden'}>${settings.previewPath ? esc(previewFolderPath(file.path)) : ''}</div>${audioFile ? `<div class="wave-wrap"><canvas class="wave" id="wavecanvas" aria-label="Waveform preview"></canvas><span class="wave-cursor" id="wavecursor" hidden></span></div>` : ''}<div class="file-mark-row"><div class="file-color-row" id="file-colors" role="group" aria-label="File color">${LUNA_PALETTE.map((color) => `<button type="button" class="file-color${fileColors[file.path] === color ? ' selected' : ''}" data-color="${color}" style="--file-swatch:${color}" title="${color}" aria-label="${fileColors[file.path] === color ? 'Clear' : 'Set'} file color ${color}" aria-pressed="${fileColors[file.path] === color}"></button>`).join('')}</div><button type="button" class="star preview-favorite${favorites.has(file.path) ? ' on' : ''}" title="Favorite" aria-label="${favorites.has(file.path) ? 'Remove from favorites' : 'Add to favorites'}" aria-pressed="${favorites.has(file.path)}">${favorites.has(file.path) ? '★' : '☆'}</button></div><div class="audio-controls previewcontrols"><button class="primary" id="${audioFile ? 'preview' : 'previewmidi'}">▶ Preview</button>${audioFile ? '<label class="volumecontrol" title="Preview volume"><span class="vol-label">VOL</span><input id="previewvolume" type="range" min="0" max="1" step="0.01" value="' + (settings.previewVolume ?? .8) + '" aria-label="Preview volume"></label>' : '<span class="midi-control-spacer"></span>'}${audioFile ? `<button type="button" id="temposync" class="tempo-sync" aria-label="Use session tempo for audio preview" title="Preview at session tempo" aria-pressed="${settings.syncSessionTempo}">${METRONOME_ICON}</button>` : ''}<button id="autoplayoption" aria-pressed="${settings.autoplay}">Auto-Play</button><button id="loopoption" aria-pressed="${settings.loop}">Loop</button></div><div class="audio-controls"><button class="primary" id="import">＋ Add to selected track</button><button id="newtrackimport">＋ Add to new track</button><button id="similar">Find similar</button><button id="reveal">Go to Place</button></div></div>`;
   $('simlabel').textContent = '';
   $('similarpane').hidden = !similarPaneOpen;
   if (similarMatches.length) renderSimilarRows($('similarlist'));
@@ -781,6 +790,7 @@ async function renderSound(forcePlay = false): Promise<void> {
   $('reveal').onclick = () => { const folder = file.isDirectory ? file.path : file.path.replace(/[\\/][^\\/]+$/, ''); void selectPlace(folder); };
   $('similar').onclick = () => renderSimilar(file);
   for (const button of root.querySelectorAll<HTMLButtonElement>('.file-color')) button.onclick = () => toggleFileColor(file, button.dataset.color ?? '');
+  root.querySelector<HTMLButtonElement>('.preview-favorite')!.onclick = () => toggleFavorite(file);
 }
 function paintWaveform(canvas: HTMLCanvasElement, peaks: readonly number[]): void {
   const rect = canvas.getBoundingClientRect();
@@ -1725,6 +1735,13 @@ function setView(next: string): void {
 $('refresh').onclick = () => { if (currentFolder) void loadFolder(currentFolder); };
 $('settings').onclick = () => $('settingsdialog', HTMLDialogElement).showModal();
 $('closesettings').onclick = () => $('settingsdialog', HTMLDialogElement).close();
+$('panelbackground', HTMLSelectElement).value = settings.background;
+document.documentElement.dataset.background = settings.background;
+$('panelbackground', HTMLSelectElement).addEventListener('change', () => {
+  settings.background = $('panelbackground', HTMLSelectElement).value;
+  document.documentElement.dataset.background = settings.background;
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+});
 $('help').onclick = () => $('helpdialog', HTMLDialogElement).showModal();
 $('closehelp').onclick = () => $('helpdialog', HTMLDialogElement).close();
 function renderAccentPalette(): void {
