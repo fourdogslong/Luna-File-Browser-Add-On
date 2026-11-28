@@ -24,9 +24,9 @@ Add the sound to the selected track or create a new track. Optional double-click
 
 ## Compare similar sounds
 
-Find Similar ranks related audio or MIDI files while keeping the selected sound as the reference. Choose whether to search the full library or just the selected folder and its subfolders. While a scan is running, selecting another folder redirects it; closing Similar Sounds cancels it.
+Find Similar audio or MIDI files while keeping the selected sound as the reference. Choose whether to search the full library or just the selected folder and its subfolders. While a scan is running, selecting another folder redirects it; closing Similar Sounds cancels it.
 
-![Find Similar ranks related sounds and keeps the reference result visible](screenshots/similar-sounds.png)
+![Find Similar sounds and keeps the reference result visible](screenshots/similar-sounds.png)
 
 ## Adaptive panel layouts
 
