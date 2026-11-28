@@ -1,7 +1,7 @@
 {
   "name": "file-browser",
   "private": true,
-  "version": "1.0.66",
+  "version": "1.0.69",
   "type": "module",
   "description": "File Browser Add On for LUNA",
   "scripts": {
